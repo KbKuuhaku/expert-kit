@@ -23,3 +23,5 @@ if [[ ! -v EK_CONFIG ]]; then
     echo "export EK_CONFIG=$(realpath ./dev/hello-world.config.yaml)" >> $ZSHRC
 fi
 
+# Restart zsh
+exec zsh

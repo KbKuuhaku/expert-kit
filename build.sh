@@ -28,7 +28,6 @@ fi
 
 # Set environment variables
 ./set_env.sh
-. ~/.zshrc
 
 cargo build --release
 
