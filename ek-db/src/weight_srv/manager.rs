@@ -23,6 +23,10 @@ impl WeightManager<'_> {
             let tp = Arc::new(RwLock::new(TransformerPretrained::try_from_desc(&desc)?));
             wm.weights
                 .insert(root.file_name().unwrap().to_str().unwrap().to_owned(), tp);
+            log::info!(
+                "loaded model: {}",
+                root.file_name().unwrap().to_str().unwrap().to_owned()
+            );
         }
         Ok(unsafe { transmute::<WeightManager<'_>, WeightManager<'_>>(wm) })
     }
