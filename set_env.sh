@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ZSHRC=$HOME/.zshrc
-echo $ZSHRC
+echo "Attempting to append environment variables to $ZSHRC..."
 
 if [[ ! -v LIBTORCH ]]; then
     echo "LIBTORCH not found, add it to zshrc..."
@@ -11,11 +11,6 @@ fi
 if [[ ! -v DYLD_FALLBACK_LIBRARY_PATH ]]; then
     echo "DYLD_FALLBACK_LIBRARY_PATH not found, add it to zshrc..."
     echo "export DYLD_FALLBACK_LIBRARY_PATH=$(realpath ./vendor/libtorch/lib)" >> $ZSHRC
-fi
-
-if [[ ! -v DS_TINY_ROOT ]]; then
-    echo "DS_TINY_ROOT not found, add it to zshrc..."
-    echo "export DS_TINY_ROOT=$(realpath ./ek-db/resources/ds-tiny/)" >> $ZSHRC
 fi
 
 if [[ ! -v LD_LIBRARY_PATH ]]; then
