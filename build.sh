@@ -22,7 +22,7 @@ fi
 LIBTORCH_ZIP="/tmp/libtorch.zip"
 if [[ ! -d $VENDOR_DIR/libtorch ]]; then
     echo "LibTorch does not exist, fetching..."
-    wget https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.7.0%2Bcpu.zip -O $LIBTORCH_ZIP
+    wget "https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.7.0%2Bcpu.zip" -O $LIBTORCH_ZIP
     unzip $LIBTORCH_ZIP -d $VENDOR_DIR
 fi
 
