@@ -147,8 +147,8 @@ impl PyExpertKitTracer {
         op_name: Option<String>,
     ) -> PyResult<PyObject> {
         if func.is_none() {
-            // keyword-only parameter
-            // func not shown yet, deal with op_name first with outer wrapper
+            // Keyword-only parameter
+            // Func not shown yet, deal with op_name first with outer wrapper
             // @tracer(op_name=None) or @tracer(op_name="xxx")
             let wrapper = TracerOuterWrapper {
                 op_name: op_name.map(Arc::from),
@@ -166,7 +166,7 @@ impl PyExpertKitTracer {
             ));
         }
 
-        // First argument is func, use inner wrapper
+        // First argument is a function, use inner wrapper
         let func_name = func_obj.getattr(py, "__name__")?.extract::<String>(py)?;
         let wrapper = TracerInnerWrapper {
             func: func_obj,
@@ -180,7 +180,7 @@ impl PyExpertKitTracer {
 impl TracerOuterWrapper {
     fn __call__<'py>(&self, py: Python<'py>, func: PyObject) -> PyResult<TracerInnerWrapper> {
         // The operation name is the function name by default
-        // will be overrided by `maybe_op_name` if the user provides it
+        // Will be overrided by `maybe_op_name` if the user provides it
         let op_name = match &self.op_name {
             Some(name) => name.clone(),
             None => Arc::from(func.getattr(py, "__name__")?.extract::<String>(py)?),
@@ -203,7 +203,7 @@ impl TracerInnerWrapper {
 
         // Start a span to profile the process
         let start0 = Instant::now();
-        // NOTE: Have to first define a static span name (`span_name`)
+        // NOTE: Have to first define a static span name (`span_name`),
         // then use otel.name to override the span name
         // https://docs.rs/tracing-opentelemetry/latest/tracing_opentelemetry/#special-fields
         let span = tracing::span!(Level::INFO, "span_name", "otel.name" = %self.op_name);
@@ -224,6 +224,7 @@ impl TracerInnerWrapper {
     }
 }
 
+// Copied from `ek-cli/src/main.rs`
 fn init_tracer_provider(svc_name: &'static str) -> SdkTracerProvider {
     let exporter = opentelemetry_otlp::SpanExporter::builder()
         .with_tonic()
