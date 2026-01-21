@@ -5,3 +5,4 @@ container
 .vscode
 dev
 doc
+**/.venv

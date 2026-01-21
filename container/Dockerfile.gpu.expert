@@ -1,0 +1,69 @@
+FROM ek-gpu-base AS ek-base
+
+ARG PROXY
+
+ENV HTTP_PROXY=${PROXY}
+ENV HTTPS_PROXY=${PROXY}
+ENV http_proxy=${PROXY}
+ENV https_proxy=${PROXY}
+ENV no_proxy="localhost,127.0.0.1,::1,mirrors.tuna.tsinghua.edu.cn"
+ENV NO_PROXY="localhost,127.0.0.1,::1,mirrors.tuna.tsinghua.edu.cn"
+
+WORKDIR /ek
+
+####################### Expert Kit (Expert) ####################### 
+## Build dependencies
+RUN cargo new --lib ek-base && \
+    cargo new --lib ek-benchmark && \
+    cargo new --lib ek-computation && \
+    cargo new --lib ek-db && \
+    cargo new --lib ek-cli && \
+    cargo new --lib ek-ggml && \
+    cargo new --lib ek-integration/expertkit-transport-rs
+## Create dummy folders and dependent files
+RUN mkdir -p ek-computation/benches && \
+    cd ek-computation/benches && echo "fn main() {}" > main.rs
+## Copy dependencies
+COPY ek-base/Cargo.toml ./ek-base/
+COPY ek-benchmark/Cargo.toml ./ek-benchmark/
+COPY ek-computation/Cargo.toml ./ek-computation/
+COPY ek-cli/Cargo.toml ./ek-cli/
+COPY ek-db/Cargo.toml ./ek-db/
+COPY ek-ggml/Cargo.toml ./ek-ggml/
+COPY ek-integration/expertkit-transport-rs/Cargo.toml ./ek-integration/expertkit-transport-rs
+COPY Cargo.toml ./Cargo.lock ./
+RUN cargo build --release --lib &&\
+cargo clean # this cleans up caches but keeps internet downloads
+
+## Build the rest of the project
+# touch updates the timestamp of lib.rs
+COPY ek-base/ ./ek-base/
+COPY ek-benchmark/ ./ek-benchmark/
+COPY ek-computation/ ./ek-computation/
+COPY ek-cli/ ./ek-cli/
+COPY ek-db/ ./ek-db/
+COPY ek-proto/ ./ek-proto/
+COPY ek-ggml ./ek-ggml/
+COPY ek-integration/expertkit-transport-rs ./ek-integration/expertkit-transport-rs
+RUN touch ./ek-base/src/lib.rs && \
+touch ./ek-computation/src/lib.rs && \
+touch ./ek-benchmark/src/lib.rs && \
+touch ./ek-db/src/lib.rs && \
+touch ./ek-cli/src/lib.rs && \
+touch ./ek-computation/benches/main.rs && \
+touch ./ek-integration/expertkit-transport-rs/src/lib.rs && \
+cargo build --release && \
+cargo clean # this cleans up caches but keeps internet downloads
+####################### Expert Kit (Expert) ####################### 
+
+RUN chmod -R 777 /ek ${CARGO_HOME} # makes sure each user has read/write/execute permission
+
+# Unset proxy
+ENV HTTP_PROXY=""
+ENV HTTPS_PROXY=""
+ENV http_proxy=""
+ENV https_proxy=""
+
+EXPOSE 22 
+
+CMD [ "/usr/local/bin/entrypoint" ]

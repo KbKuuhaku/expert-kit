@@ -1,0 +1,135 @@
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04 AS sys-base
+
+####################### Variables ####################### 
+# Dockerfile args (alive in docker image build)
+ARG PROXY
+ARG TORCH_VERSION=2.7.0
+ARG TORCH_CUDA_ARCH=cu126
+ARG LIBTORCH_URL="https://download.pytorch.org/libtorch/${TORCH_CUDA_ARCH}/libtorch-cxx11-abi-shared-with-deps-${TORCH_VERSION}%2B${TORCH_CUDA_ARCH}.zip"
+ARG TMP_LIBTORCH_ZIP="/tmp/libtorch.zip"
+
+# Enviromental vars (alive in docker container)
+ENV HTTP_PROXY=${PROXY}
+ENV HTTPS_PROXY=${PROXY}
+ENV http_proxy=${PROXY}
+ENV https_proxy=${PROXY}
+ENV no_proxy="localhost,127.0.0.1,::1,mirrors.tuna.tsinghua.edu.cn"
+ENV NO_PROXY="localhost,127.0.0.1,::1,mirrors.tuna.tsinghua.edu.cn"
+
+ENV LIBTORCH_BASE_DIR=/opt/torch
+ENV LIBTORCH=${LIBTORCH_BASE_DIR}/libtorch
+ENV LD_LIBRARY_PATH=${LIBTORCH}/lib
+ENV DYLD_FALLBACK_LIBRARY_PATH=${LIBTORCH}/lib
+ENV EK_CONFIG=/etc/expert-kit/config.yaml
+
+# Rust Related
+ENV CARGO_HOME=/opt/cargo
+ENV RUSTUP_HOME=/opt/rustup
+ENV PATH="${CARGO_HOME}/bin:{RUSTUP_HOME}/bin:${PATH}"
+ENV CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=1"
+# Set up the cargo mirror
+ENV RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup
+ENV RUSTUP_UPDATE_ROOT=https://mirrors.tuna.tsinghua.edu.cn/rustup/rustup
+####################### Variables ####################### 
+
+####################### System Settings ####################### 
+## Replace apt offical sources with mirrors
+RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.tuna.tsinghua.edu.cn@g' /etc/apt/sources.list && \
+    sed -i 's@//security.ubuntu.com@//mirrors.tuna.tsinghua.edu.cn@g' /etc/apt/sources.list
+
+## Essential packages (heavy)
+RUN apt-get update && \
+apt-get install -y \
+"openssh-server" "sudo" "build-essential" "iputils-ping" "net-tools" \
+"htop" "nvtop" "tree" "tmux" "netcat-openbsd" "entr" "xsel" \
+"wget" "curl" "aria2" "lshw" "kmod" "pkg-config" "unzip" "git-lfs" \
+"cmake" "rdma-core" "clang" "protobuf-compiler" "vim" && \
+rm -rf /var/lib/apt/lists/*  # clean up apt cache
+####################### System Settings ####################### 
+
+
+####################### Expert Kit Prerequisites ####################### 
+## Cargo setting
+RUN mkdir -p ${CARGO_HOME} && mkdir -p ${RUSTUP_HOME} 
+
+## Prerequisites for expert-kit (light and subject to change)
+RUN apt-get update && \
+apt-get install -y \ 
+"libibverbs-dev" "libclang-dev" "libpq-dev" && \
+rm -rf /var/lib/apt/lists/*  # clean up apt cache
+
+WORKDIR /
+
+## Libtorch dependency
+RUN mkdir -p ${LIBTORCH_BASE_DIR} && \
+aria2c -x 16 -s 16 -k 1M ${LIBTORCH_URL} -o ${TMP_LIBTORCH_ZIP} && \
+unzip ${TMP_LIBTORCH_ZIP} -d ${LIBTORCH_BASE_DIR} && \
+rm ${TMP_LIBTORCH_ZIP} 
+
+# Prepare rust toolchain
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+sh -s -- -y --default-toolchain stable && \
+rustup show && \
+chmod -R 777 ${CARGO_HOME} && chmod -R 777 ${RUSTUP_HOME}  # always chmod at the end
+
+# Install migration Tools
+RUN cargo install diesel_cli --no-default-features --features "postgres"
+####################### Expert Kit Prerequisites ####################### 
+
+####################### SSHD Settings ####################### 
+# Disable root and password for sshd
+RUN mkdir -p /var/run/sshd && \
+sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin no/" /etc/ssh/sshd_config && \
+sed -i "s/#PasswordAuthentication yes/PasswordAuthentication no/" /etc/ssh/sshd_config
+
+# Add teammate script to /usr/local/bin
+COPY ./scripts/add_teammate.sh /usr/local/bin/add_teammate
+RUN chmod +x /usr/local/bin/add_teammate
+
+# Add entrypoint script to /usr/local/bin
+COPY ./scripts/entrypoint.sh /usr/local/bin/entrypoint
+RUN chmod +x /usr/local/bin/entrypoint
+####################### SSHD Settings ####################### 
+
+
+####################### Expert-Kit Config ####################### 
+RUN mkdir -p /etc/expert-kit && cat > ${EK_CONFIG} <<EOF
+inference:
+  instance_name: qwen3_moe_30b_local_test
+  model_name: ds-tiny
+  hidden_dim: 2048
+  intermediate_dim: 768
+  
+db:
+  db_dsn: postgres://dev:dev@localhost:5432/dev
+  max_conn_size: 32
+
+weight:
+  server:
+    addr: http://localhost:6543
+  cache:
+    Fs:
+      path: /ek/weight_cache/
+
+worker:
+  id: local_test
+  listen: 0.0.0.0
+  broadcast: 0.0.0.0
+  ports:
+    main: 51234
+
+controller:
+  listen: 0.0.0.0
+  broadcast: localhost
+  ports:
+    intra: 5001
+    inter: 5002
+EOF
+####################### Expert-Kit Config ####################### 
+
+# Unset proxy
+ENV HTTP_PROXY=""
+ENV HTTPS_PROXY=""
+ENV http_proxy=""
+ENV https_proxy=""
+
