@@ -25,7 +25,7 @@ ENV EK_CONFIG=/etc/expert-kit/config.yaml
 # Rust Related
 ENV CARGO_HOME=/opt/cargo
 ENV RUSTUP_HOME=/opt/rustup
-ENV PATH="${CARGO_HOME}/bin:{RUSTUP_HOME}/bin:${PATH}"
+ENV PATH="${CARGO_HOME}/bin:${RUSTUP_HOME}/bin:${PATH}"
 ENV CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=1"
 # Set up the cargo mirror
 ENV RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup
@@ -69,8 +69,7 @@ rm ${TMP_LIBTORCH_ZIP}
 # Prepare rust toolchain
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
 sh -s -- -y --default-toolchain stable && \
-rustup show && \
-chmod -R 777 ${CARGO_HOME} && chmod -R 777 ${RUSTUP_HOME}  # always chmod at the end
+rustup show
 
 # Install migration Tools
 RUN cargo install diesel_cli --no-default-features --features "postgres"
@@ -93,13 +92,14 @@ RUN chmod +x /usr/local/bin/entrypoint
 
 
 ####################### Expert-Kit Config ####################### 
-RUN mkdir -p /etc/expert-kit && cat > ${EK_CONFIG} <<EOF
+# Dummy config, can be overwritten afterwards
+RUN mkdir -p /etc/expert-kit && mkdir -p /tmp/expert-kit/cache && cat > ${EK_CONFIG} <<EOF
 inference:
-  instance_name: qwen3_moe_30b_local_test
+  hidden_dim: 16
+  intermediate_dim: 8
+  instance_name: local-test
   model_name: ds-tiny
-  hidden_dim: 2048
-  intermediate_dim: 768
-  
+
 db:
   db_dsn: postgres://dev:dev@localhost:5432/dev
   max_conn_size: 32
@@ -109,14 +109,15 @@ weight:
     addr: http://localhost:6543
   cache:
     Fs:
-      path: /ek/weight_cache/
+      path: /tmp/expert-kit/cache
 
 worker:
-  id: local_test
+  id: local-dev
   listen: 0.0.0.0
-  broadcast: 0.0.0.0
+  broadcast: 127.0.0.1
   ports:
     main: 51234
+  device: cpu
 
 controller:
   listen: 0.0.0.0

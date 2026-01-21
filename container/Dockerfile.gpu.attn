@@ -67,7 +67,7 @@ COPY ek-integration/expertkit_torch ./ek-integration/expertkit_torch
 COPY ek-integration/expertkit_vllm ./ek-integration/expertkit_vllm
 ####################### Expert Kit (Attn) ####################### 
 
-RUN chmod -R 777 /ek ${CARGO_HOME} ${UV_CACHE_DIR} ${UV_HOME} # makes sure each user has read/write/execute permission
+RUN chmod -R 777 /ek ${CARGO_HOME} ${UV_CACHE_DIR} ${UV_HOME} /etc/expert-kit /tmp/expert-kit/cache # makes sure each user has read/write/execute permission
 RUN git config --system --add safe.directory '*'  # allows git to operate on root-owned directories
 
 # Unset proxy

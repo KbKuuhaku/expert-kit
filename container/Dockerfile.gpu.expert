@@ -56,7 +56,7 @@ cargo build --release && \
 cargo clean # this cleans up caches but keeps internet downloads
 ####################### Expert Kit (Expert) ####################### 
 
-RUN chmod -R 777 /ek ${CARGO_HOME} # makes sure each user has read/write/execute permission
+RUN chmod -R 777 /ek ${CARGO_HOME} /etc/expert-kit /tmp/expert-kit/cache # makes sure each user has read/write/execute permission
 
 # Unset proxy
 ENV HTTP_PROXY=""
