@@ -23,23 +23,24 @@ docker build -f container/Dockerfile.gpu.base \
 ```
 
 ### Test Docker Image in a Container
-In order to test it in your local machine, run the docker with interactive shell:
 
-#### Root (Admin)
+#### Start a Bash Shell as Root (Admin)
+In order to test it on your local machine, run the docker with interactive shell:
+
 ```bash
 docker run --rm --network host -it <your-docker-image-tag> bash
 ```
 This command will remove any existed container created from your image 
 (delete `--rm` if you don't want it), start a bash shell and use your host network (127.0.0.1)
 
-Then, in the bash shell, you can add teammate with `add_teammate` 
+#### Add Teammate
+In the bash shell, you can add teammate with `add_teammate` 
 and it will ask you to provide ssh key from `~/.ssh/id_rsa.pub`:
 ```bash
 add_teammate <username> <uid>
 ```
 
-#### User
-Once you are able to access the container, login with ssh in a terminal:
+Then you can start a new terminal to do SSH login:
 ```bash
 ssh <username>@localhost
 ```
@@ -64,4 +65,4 @@ If you are the admin, login with ssh as root first:
 ssh root@<ip> -p <port>
 ```
 
-Everything else is the same as [what we did on the local machine](#root-admin). 
+Everything else is the same as [what we did on the local machine](#add-teammate). 
