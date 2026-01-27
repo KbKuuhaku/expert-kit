@@ -8,8 +8,8 @@
 ### Build Docker Image
 Before building the docker image, copy your SSH public key into `.secret`:
 ```bash
-mkdir -p .secret
-cp ~/.ssh/id_rsa.pub .secret/
+mkdir -p .secrets
+cp ~/.ssh/id_rsa.pub .secrets/
 ```
 
 Then, build the docker image
