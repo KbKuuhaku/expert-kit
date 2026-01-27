@@ -20,3 +20,6 @@ __pycache__
 # output
 output/
 .idea
+
+# Secrets for devs
+.secrets

@@ -2,30 +2,26 @@ FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04 AS sys-base
 
 ####################### Variables ####################### 
 # Dockerfile args (alive in docker image build)
-ARG PROXY
+ARG BUILD_PROXY
+ARG DEPLOY_PROXY
 ARG TORCH_VERSION=2.7.0
 ARG TORCH_CUDA_ARCH=cu126
 ARG LIBTORCH_URL="https://download.pytorch.org/libtorch/${TORCH_CUDA_ARCH}/libtorch-cxx11-abi-shared-with-deps-${TORCH_VERSION}%2B${TORCH_CUDA_ARCH}.zip"
 ARG TMP_LIBTORCH_ZIP="/tmp/libtorch.zip"
 
 # Enviromental vars (alive in docker container)
-ENV HTTP_PROXY=${PROXY}
-ENV HTTPS_PROXY=${PROXY}
-ENV http_proxy=${PROXY}
-ENV https_proxy=${PROXY}
+ENV HTTP_PROXY=${BUILD_PROXY}
+ENV HTTPS_PROXY=${BUILD_PROXY}
+ENV http_proxy=${BUILD_PROXY}
+ENV https_proxy=${BUILD_PROXY}
 ENV no_proxy="localhost,127.0.0.1,::1,mirrors.tuna.tsinghua.edu.cn"
 ENV NO_PROXY="localhost,127.0.0.1,::1,mirrors.tuna.tsinghua.edu.cn"
 
 ENV LIBTORCH_BASE_DIR=/opt/torch
 ENV LIBTORCH=${LIBTORCH_BASE_DIR}/libtorch
-ENV LD_LIBRARY_PATH=${LIBTORCH}/lib
-ENV DYLD_FALLBACK_LIBRARY_PATH=${LIBTORCH}/lib
-ENV EK_CONFIG=/etc/expert-kit/config.yaml
+ENV LD_LIBRARY_PATH="${LIBTORCH}/lib:${LD_LIBRARY_PATH}"
 
 # Rust Related
-ENV CARGO_HOME=/opt/cargo
-ENV RUSTUP_HOME=/opt/rustup
-ENV PATH="${CARGO_HOME}/bin:${RUSTUP_HOME}/bin:${PATH}"
 ENV CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=1"
 # Set up the cargo mirror
 ENV RUSTUP_DIST_SERVER=https://mirrors.tuna.tsinghua.edu.cn/rustup
@@ -40,18 +36,15 @@ RUN sed -i 's@//.*archive.ubuntu.com@//mirrors.tuna.tsinghua.edu.cn@g' /etc/apt/
 ## Essential packages (heavy)
 RUN apt-get update && \
 apt-get install -y \
-"openssh-server" "sudo" "build-essential" "iputils-ping" "net-tools" \
+"openssh-server" "openssh-client" "sudo" "build-essential" "iputils-ping" "net-tools" \
 "htop" "nvtop" "tree" "tmux" "netcat-openbsd" "entr" "xsel" \
 "wget" "curl" "aria2" "lshw" "kmod" "pkg-config" "unzip" "git-lfs" \
-"cmake" "rdma-core" "clang" "protobuf-compiler" "vim" && \
+"cmake" "rdma-core" "clang" "protobuf-compiler" "vim" \
+"python3" "python3-pip" "python3-venv" && \
 rm -rf /var/lib/apt/lists/*  # clean up apt cache
 ####################### System Settings ####################### 
 
-
 ####################### Expert Kit Prerequisites ####################### 
-## Cargo setting
-RUN mkdir -p ${CARGO_HOME} && mkdir -p ${RUSTUP_HOME} 
-
 ## Prerequisites for expert-kit (light and subject to change)
 RUN apt-get update && \
 apt-get install -y \ 
@@ -62,23 +55,15 @@ WORKDIR /
 
 ## Libtorch dependency
 RUN mkdir -p ${LIBTORCH_BASE_DIR} && \
-aria2c -x 16 -s 16 -k 1M ${LIBTORCH_URL} -o ${TMP_LIBTORCH_ZIP} && \
+aria2c --all-proxy="${BUILD_PROXY}" -x 16 -s 16 -k 1M ${LIBTORCH_URL} -o ${TMP_LIBTORCH_ZIP} && \
 unzip ${TMP_LIBTORCH_ZIP} -d ${LIBTORCH_BASE_DIR} && \
 rm ${TMP_LIBTORCH_ZIP} 
 
-# Prepare rust toolchain
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-sh -s -- -y --default-toolchain stable && \
-rustup show
-
-# Install migration Tools
-RUN cargo install diesel_cli --no-default-features --features "postgres"
 ####################### Expert Kit Prerequisites ####################### 
 
 ####################### SSHD Settings ####################### 
-# Disable root and password for sshd
-RUN mkdir -p /var/run/sshd && \
-sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin no/" /etc/ssh/sshd_config && \
+RUN mkdir -p /var/run/sshd /root/.ssh && \
+sed -i "s/#PermitRootLogin prohibit-password/PermitRootLogin yes/" /etc/ssh/sshd_config && \
 sed -i "s/#PasswordAuthentication yes/PasswordAuthentication no/" /etc/ssh/sshd_config
 
 # Add teammate script to /usr/local/bin
@@ -88,49 +73,20 @@ RUN chmod +x /usr/local/bin/add_teammate
 # Add entrypoint script to /usr/local/bin
 COPY ./scripts/entrypoint.sh /usr/local/bin/entrypoint
 RUN chmod +x /usr/local/bin/entrypoint
+
+# ek-env.sh will be automatically sourced if moved to /etc/profile.d
+COPY ./scripts/ek-env.sh /etc/profile.d/ek-env.sh
+
+# Add pub key to root for login
+COPY ./.secrets/id_rsa.pub /root/.ssh/authorized_keys
+RUN chmod 600 /root/.ssh/authorized_keys
 ####################### SSHD Settings ####################### 
 
+EXPOSE 22
 
-####################### Expert-Kit Config ####################### 
-# Dummy config, can be overwritten afterwards
-RUN mkdir -p /etc/expert-kit && mkdir -p /tmp/expert-kit/cache && cat > ${EK_CONFIG} <<EOF
-inference:
-  hidden_dim: 16
-  intermediate_dim: 8
-  instance_name: local-test
-  model_name: ds-tiny
-
-db:
-  db_dsn: postgres://dev:dev@localhost:5432/dev
-  max_conn_size: 32
-
-weight:
-  server:
-    addr: http://localhost:6543
-  cache:
-    Fs:
-      path: /tmp/expert-kit/cache
-
-worker:
-  id: local-dev
-  listen: 0.0.0.0
-  broadcast: 127.0.0.1
-  ports:
-    main: 51234
-  device: cpu
-
-controller:
-  listen: 0.0.0.0
-  broadcast: localhost
-  ports:
-    intra: 5001
-    inter: 5002
-EOF
-####################### Expert-Kit Config ####################### 
-
-# Unset proxy
-ENV HTTP_PROXY=""
-ENV HTTPS_PROXY=""
-ENV http_proxy=""
-ENV https_proxy=""
-
+ENV HTTP_PROXY=${DEPLOY_PROXY}
+ENV HTTPS_PROXY=${DEPLOY_PROXY}
+ENV http_proxy=${DEPLOY_PROXY}
+ENV https_proxy=${DEPLOY_PROXY}
+ENV no_proxy="localhost,127.0.0.1,::1,10.0.0.0/8,192.168.0.0/16,mirrors.tuna.tsinghua.edu.cn"
+ENV NO_PROXY=${no_proxy}
