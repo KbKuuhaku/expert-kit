@@ -12,9 +12,9 @@ mkdir -p .secrets
 cp ~/.ssh/id_rsa.pub .secrets/
 ```
 
-Then, build the docker image
+Then, build the docker image in the **working directory**
 ```bash
-docker build -f container/Dockerfile.gpu.base \
+docker build -f container/Dockerfile.gpu \
 -t <your-docker-image-tag> \
 --network host \
 --build-arg BUILD_PROXY="<your-https-proxy>" \
