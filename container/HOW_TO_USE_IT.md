@@ -64,4 +64,4 @@ If you are the admin, login with ssh as root first:
 ssh root@<ip> -p <port>
 ```
 
-Everything else is the same as [how we did in local machine](#test-docker-image-in-a-container). 
+Everything else is the same as [what we did on the local machine](#root-admin). 
