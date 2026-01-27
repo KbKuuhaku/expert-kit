@@ -70,10 +70,6 @@ sed -i "s/#PasswordAuthentication yes/PasswordAuthentication no/" /etc/ssh/sshd_
 COPY ./scripts/add_teammate.sh /usr/local/bin/add_teammate
 RUN chmod +x /usr/local/bin/add_teammate
 
-# Add entrypoint script to /usr/local/bin
-COPY ./scripts/entrypoint.sh /usr/local/bin/entrypoint
-RUN chmod +x /usr/local/bin/entrypoint
-
 # ek-env.sh will be automatically sourced if moved to /etc/profile.d
 COPY ./scripts/ek-env.sh /etc/profile.d/ek-env.sh
 
