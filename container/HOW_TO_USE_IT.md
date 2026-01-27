@@ -6,7 +6,7 @@
 - `DEPLOY_PROXY`: proxy provided by crater for accessing internet with VPN.
 
 ### Build Docker Image
-Before building the docker image, copy your SSH public key into `.secret`:
+Before building the docker image, copy your SSH public key into `.secrets`:
 ```bash
 mkdir -p .secrets
 cp ~/.ssh/id_rsa.pub .secrets/
