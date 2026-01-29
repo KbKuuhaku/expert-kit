@@ -48,6 +48,7 @@ rm -rf /var/lib/apt/lists/*  # clean up apt cache
 ## Prerequisites for expert-kit (light and subject to change)
 RUN apt-get update && \
 apt-get install -y \ 
+"infiniband-diags" "perftest" "ibverbs-providers" "libibumad3" "libibverbs1" "libnl-3-200" "libnl-route-3-200" "librdmacm1" \ 
 "libibverbs-dev" "libclang-dev" "libpq-dev" && \
 rm -rf /var/lib/apt/lists/*  # clean up apt cache
 
@@ -86,3 +87,5 @@ ENV http_proxy=${DEPLOY_PROXY}
 ENV https_proxy=${DEPLOY_PROXY}
 ENV no_proxy="localhost,127.0.0.1,::1,10.0.0.0/8,192.168.0.0/16,mirrors.tuna.tsinghua.edu.cn"
 ENV NO_PROXY=${no_proxy}
+
+CMD [ "/usr/sbin/sshd", "-De" ]
