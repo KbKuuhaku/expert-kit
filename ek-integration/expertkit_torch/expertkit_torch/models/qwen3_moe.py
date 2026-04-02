@@ -277,7 +277,7 @@ def evaluate_batch(
 
         model = AutoModelForCausalLM.from_config(
             config,
-            torch_dtype=torch.float16,
+            torch_dtype=config.torch_dtype,
         ).to(device)
 
     # Initialize profiler manager with context manager
