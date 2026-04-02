@@ -5,10 +5,10 @@ pub use queue::{ShmQueue, ShmQueueError, ShmqWorkerReq, ShmqWorkerResp};
 use super::*;
 use dashmap::DashMap;
 use log::debug;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use parking_lot::Mutex;
 
 const MAX_TENSOR_SIZE: usize = 64 * 1024 * 1024; // 64 MB
 const REQ_CAPACITY: usize = 8 + 64 + 8 + MAX_TENSOR_SIZE;

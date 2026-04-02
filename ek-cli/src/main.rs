@@ -10,7 +10,7 @@ mod onnx;
 use affinity::try_apply_cpu_affinity;
 use db::execute_db;
 use doctor::doctor_main;
-use ek_base::config::get_ek_settings_base;
+use ek_base::config::{get_ek_settings, get_ek_settings_base};
 use ek_computation::{controller::controller_main, worker::worker_main};
 use env_logger::fmt::default_kv_format;
 use opentelemetry::{
@@ -19,7 +19,7 @@ use opentelemetry::{
 use std::io::Write;
 
 use tokio::runtime::Runtime;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt};
 
 use ek_db::weight_srv;
 
@@ -37,6 +37,9 @@ use opentelemetry_semantic_conventions::{
 use pretrain::{PretrainCommand, execute_pretrain};
 use schedule::execute_schedule;
 use tracing::Level;
+
+use {std::fs, std::sync::OnceLock, tracing_appender::non_blocking::WorkerGuard};
+static TRACING_LOCK: OnceLock<WorkerGuard> = OnceLock::new();
 
 #[derive(Subcommand, Debug)]
 enum Command {
@@ -159,6 +162,46 @@ fn init_tracer_provider(svc_name: &'static str) -> SdkTracerProvider {
     opentelemetry::global::set_text_map_propagator(composite_propagator);
     provider
 }
+
+fn init_tracing_subscriber_with_json_writer(svc_name: &'static str) {
+    // NOTE: Hardcode output directory for tracer JSON
+    let output_dir = "benchmark_traces";
+    if let Err(e) = fs::create_dir_all(output_dir) {
+        log::warn!(
+            "Unable to create {output_dir} and initialize tracing subscriber, abort ({e:?})"
+        );
+        return;
+    }
+    // Create the output json file
+    let file = match fs::File::create(format!("{}/{}.json", output_dir, svc_name)) {
+        Ok(file) => file,
+        Err(e) => {
+            log::warn!("Unable to create file, abort ({e:?}).");
+            return;
+        }
+    };
+
+    // Start a non-block writer storing JSON in background thread
+    let (non_blocking_writer, _guard) = tracing_appender::non_blocking(file);
+
+    // Ref: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/struct.Layer.html#method.with_span_events
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::filter::LevelFilter::from_level(
+            Level::INFO,
+        ))
+        .with(
+            tracing_subscriber::fmt::layer()
+                .json()
+                .with_span_events(FmtSpan::CLOSE) // record the duration
+                .with_writer(non_blocking_writer),
+        )
+        .init();
+
+    if let Err(e) = TRACING_LOCK.set(_guard) {
+        log::warn!("Unable to set guard on TRACING_LOCK: {e:?}");
+    }
+}
+
 fn init_tracing_subscriber(svc_name: &'static str) {
     let tracer_provider = init_tracer_provider(svc_name);
     let tracer = tracer_provider.tracer("tracing-otel-subscriber");
@@ -275,13 +318,21 @@ fn main() {
     };
 
     let res = tokio_rt.block_on(async {
-        // Must place tracing subscriber init in tokio runtime block
-        init_tracing_subscriber(command_name);
         match cli.command {
             Command::Onnx { command } => onnx::execute_onnx(command).await,
             Command::Pretrain { command } => execute_pretrain(command).await,
-            Command::Worker {} => worker_main().await,
-            Command::Controller {} => controller_main().await,
+            Command::Worker {} => {
+                let settings = get_ek_settings();
+                let worker_id = &settings.worker.id;
+                // Must place tracing subscriber init in tokio runtime block
+                init_tracing_subscriber_with_json_writer(worker_id);
+                worker_main(settings).await
+            }
+            Command::Controller {} => {
+                // Must place tracing subscriber init in tokio runtime block
+                init_tracing_subscriber(command_name);
+                controller_main().await
+            }
             Command::Doctor {} => doctor_main().await,
             Command::WeightServer { host, port, model } => {
                 let model: &[PathBuf] = unsafe { transmute(model.as_slice()) };

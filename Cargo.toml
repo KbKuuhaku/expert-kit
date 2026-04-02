@@ -132,5 +132,6 @@ tracing-subscriber = { version = "0.3.19", default-features = false, features = 
     "std",
     "registry",
     "local-time",
-] }
+] } 
+tracing-appender = "0.2"
 url = "2.5.7"

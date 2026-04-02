@@ -73,7 +73,14 @@ impl EKInstanceGateSync {
     }
 
     /// Synchronous forward computation - optimized for compute-intensive tasks
-    #[instrument(skip(self, req))]
+    #[instrument(
+        name = "expert_compute",
+        level = "info",
+        skip_all,
+        fields(
+            expert_id = %req.sequences[0].experts[0],
+        ),
+    )]
     pub fn forward_sync(
         &self,
         req: ek::worker::v1::ForwardReq,
@@ -91,6 +98,13 @@ impl EKInstanceGateSync {
         assert!(!req.sequences.is_empty());
         assert!(req.sequences[0].experts.len() == 1);
         let exp_id = &req.sequences[0].experts[0];
+
+        // Start a span aligned with `forward_sync_core`
+        let _span = tracing::info_span!(
+            "expert_compute",
+            expert_id = %exp_id,
+        )
+        .entered();
 
         // Load expert synchronously from shared database
         let exp = self.experts.load(exp_id)?;
@@ -126,6 +140,7 @@ impl EKInstanceGateSync {
         Ok(resp)
     }
 
+    #[instrument(name = "expert_compute", level = "info", skip_all, fields(expert_id = %expert_id))]
     pub fn forward_sync_core(
         &self,
         expert_id: ExpertIdRef<'_>,

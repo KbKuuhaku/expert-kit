@@ -43,6 +43,11 @@ tch = { workspace = true }
 # RDMA dependencies (optional, enabled with 'rdma' feature)
 ibverbs = { workspace = true, optional = true }
 
+# Tracing for offline benchmark
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "fmt", "json"] }
+
 [features]
 default = []
 rdma = ["dep:ibverbs"]

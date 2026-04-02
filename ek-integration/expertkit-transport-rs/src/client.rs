@@ -9,6 +9,55 @@ use crate::utils::{deserialize_safetensor_2_tch_tensor, serialize_tch_tensor_2_s
 
 use tch::Tensor;
 
+use tracing::Level;
+use tracing_subscriber::{fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt};
+use {std::fs, std::sync::OnceLock, tracing_appender::non_blocking::WorkerGuard};
+static TRACING_LOCK: OnceLock<WorkerGuard> = OnceLock::new();
+
+fn init_tracing_subscriber_with_json_writer() {
+    // Make sure initializaton happens only once
+    if TRACING_LOCK.get().is_some() {
+        return;
+    }
+
+    // NOTE: Hardcode output directory for tracer JSON
+    let output_dir = "benchmark_traces";
+    if let Err(e) = fs::create_dir_all(output_dir) {
+        log::warn!(
+            "Unable to create {output_dir} and initialize tracing subscriber, abort ({e:?})"
+        );
+        return;
+    }
+    // Create the output json file
+    let file = match fs::File::create(format!("{}/{}.json", output_dir, "client-sender")) {
+        Ok(file) => file,
+        Err(e) => {
+            log::warn!("Unable to create file, abort ({e:?}).");
+            return;
+        }
+    };
+
+    // Start a non-block writer storing JSON in background thread
+    let (non_blocking_writer, _guard) = tracing_appender::non_blocking(file);
+
+    // Ref: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/struct.Layer.html#method.with_span_events
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::filter::LevelFilter::from_level(
+            Level::INFO,
+        ))
+        .with(
+            tracing_subscriber::fmt::layer()
+                .json()
+                .with_span_events(FmtSpan::CLOSE) // record the duration
+                .with_writer(non_blocking_writer),
+        )
+        .try_init(); // prevent it from crashing
+
+    if let Err(e) = TRACING_LOCK.set(_guard) {
+        log::warn!("Unable to set guard on TRACING_LOCK: {e:?}");
+    }
+}
+
 /// High-level client with worker-level batching and routing
 pub struct ExpertKitClient {
     routing: RoutingClient,
@@ -17,6 +66,8 @@ pub struct ExpertKitClient {
 
 impl ExpertKitClient {
     pub fn new(controller_addr: String, timeout_sec: f64) -> Self {
+        init_tracing_subscriber_with_json_writer();
+
         Self {
             routing: RoutingClient::new(controller_addr),
             transport: Arc::new(AutoTransport::new(timeout_sec)),

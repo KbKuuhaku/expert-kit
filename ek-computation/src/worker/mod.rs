@@ -8,7 +8,7 @@ use std::time;
 use std::time::Duration;
 use std::{env, panic};
 
-use ek_base::tracing::grpc::OTelGrpcServerMiddleware;
+use ek_base::{config::Settings, tracing::grpc::OTelGrpcServerMiddleware};
 use state::StateInspector;
 use tokio::select;
 use tokio::signal;
@@ -119,8 +119,8 @@ async fn create_rdma_queues_with_tcp_server(
 }
 
 /// Main worker entry point
-pub async fn worker_main() -> EKResult<()> {
-    let settings = get_ek_settings();
+pub async fn worker_main(settings: &Settings) -> EKResult<()> {
+    // let settings = get_ek_settings();
 
     spawn_metrics_server(&settings.worker.metrics);
 
@@ -250,6 +250,7 @@ pub async fn worker_main() -> EKResult<()> {
                         let now = time::Instant::now();
                         let expert_id = req.expert_id();
                         let input_tensor = req.input_tensor();
+
                         let output_tensor = loop {
                             match gate.forward_sync_core(&expert_id, input_tensor) {
                                 Ok(result) => {

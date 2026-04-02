@@ -1,6 +1,7 @@
 use super::*;
 use crate::transport::{grpc::GrpcTransport, shm::ShmTransport};
 use log::info;
+use tracing::instrument;
 
 #[cfg(feature = "rdma")]
 use crate::transport::rdma::RdmaTransport;
@@ -106,6 +107,15 @@ impl AutoTransport {
 
 #[async_trait]
 impl Transport for AutoTransport {
+    #[instrument(
+        level = "info",
+        skip_all,
+        fields(
+            batch_size=requests.len(),
+            dest=%endpoint.grpc_addr,
+            channel=%endpoint.channel,
+        )
+    )]
     async fn send_batch(
         &self,
         endpoint: &WorkerEndpoint,
