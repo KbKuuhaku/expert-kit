@@ -29,7 +29,9 @@ fn init_tracing_subscriber_with_json_writer() {
         return;
     }
     // Create the output json file
-    let file = match fs::File::create(format!("{}/{}.json", output_dir, "client-sender")) {
+    let filename = format!("{}/{}.json", output_dir, "client");
+    log::info!("Creating JSON tracing log file {filename}...");
+    let file = match fs::File::create(filename) {
         Ok(file) => file,
         Err(e) => {
             log::warn!("Unable to create file, abort ({e:?}).");

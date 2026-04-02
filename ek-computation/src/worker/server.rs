@@ -8,7 +8,7 @@ use crate::{
 };
 use ek_base::utils::Defers;
 use tonic::{Request, Response, Status};
-use tracing::instrument;
+// use tracing::instrument;
 
 use super::core::{EKInstanceGateSync, get_instance_gate_sync};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
