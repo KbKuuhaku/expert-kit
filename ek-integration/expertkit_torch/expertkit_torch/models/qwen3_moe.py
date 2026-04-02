@@ -28,6 +28,7 @@ import torch.nn.functional as F
 
 from typing import Optional, Dict, Any, List
 from transformers import (
+    AutoConfig,
     AutoTokenizer,
     AutoModelForCausalLM,
 )
@@ -276,7 +277,7 @@ def evaluate_batch(
 
         model = AutoModelForCausalLM.from_config(
             config,
-            torch_dtype="auto",
+            torch_dtype=torch.float16,
         ).to(device)
 
     # Initialize profiler manager with context manager
