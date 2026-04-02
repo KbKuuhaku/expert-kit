@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rustc-link-lib=dylib=gomp");
     println!("cargo:rustc-link-lib=dylib=stdc++");
 
-    let mut bindings = bindgen::Builder::default();
+    let mut bindings = bindgen::Builder::default().layout_tests(false);
 
     for header in dst.join("include").read_dir()? {
         if let Ok(header) = header

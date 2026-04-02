@@ -73,14 +73,6 @@ impl EKInstanceGateSync {
     }
 
     /// Synchronous forward computation - optimized for compute-intensive tasks
-    #[instrument(
-        name = "expert_compute",
-        level = "info",
-        skip_all,
-        fields(
-            expert_id = %req.sequences[0].experts[0],
-        ),
-    )]
     pub fn forward_sync(
         &self,
         req: ek::worker::v1::ForwardReq,
