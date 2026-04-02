@@ -45,7 +45,7 @@ impl ExpertBackend {
 }
 
 impl ExpertBackend {
-    #[instrument(skip(self, view))]
+    // #[instrument(skip(self, view))]
     pub fn forward(&self, view: &TensorView) -> EKResult<Vec<u8>> {
         match self {
             ExpertBackend::Torch(exp) => {

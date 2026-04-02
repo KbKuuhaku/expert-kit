@@ -34,7 +34,7 @@ impl BasicExpertImpl {
 
 #[tonic::async_trait]
 impl ComputationService for BasicExpertImpl {
-    #[instrument(skip(self, request))]
+    // #[instrument(skip(self, request))]
     async fn forward(&self, request: Request<ForwardReq>) -> Result<Response<ForwardResp>, Status> {
         let now = Instant::now();
         let exp_id = request.get_ref().sequences[0].experts[0].clone();
