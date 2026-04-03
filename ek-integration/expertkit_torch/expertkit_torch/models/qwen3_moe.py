@@ -276,6 +276,7 @@ def evaluate_batch(
         config.num_hidden_layers = 1
 
         model = AutoModelForCausalLM.from_pretrained(
+            model_path,
             config,
             torch_dtype=config.torch_dtype,
             low_cpu_mem_usage=True,
