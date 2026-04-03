@@ -275,10 +275,12 @@ def evaluate_batch(
         config = AutoConfig.from_pretrained(model_path)
         config.num_hidden_layers = 1
 
-        model = AutoModelForCausalLM.from_config(
+        model = AutoModelForCausalLM.from_pretrained(
             config,
             torch_dtype=config.torch_dtype,
+            low_cpu_mem_usage=True,
         ).to(device)
+        print(model)
 
     # Initialize profiler manager with context manager
     with ProfilerManager(batch_size=len(prompts)) as profiler:
