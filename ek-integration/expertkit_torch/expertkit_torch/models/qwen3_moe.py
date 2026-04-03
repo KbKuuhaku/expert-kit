@@ -219,7 +219,7 @@ def intercept_moe(
             # Record overall MoE time only if profiler is available
             forward_end = time.time()
 
-            return final, router_logits
+            return final
 
     delattr(qwen3_moe, "Qwen3MoeSparseMoeBlock")
     setattr(qwen3_moe, "Qwen3MoeSparseMoeBlock", InterceptedMoE)
