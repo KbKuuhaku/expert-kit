@@ -72,6 +72,8 @@ pub struct ExpertKitClient {
 
 impl ExpertKitClient {
     pub fn new(controller_addr: String, timeout_sec: f64) -> Self {
+        log::info!("Entering init_tracing_subscriber_with_json_writer...");
+        println!("Entering init_tracing_subscriber_with_json_writer...");
         init_tracing_subscriber_with_json_writer();
 
         Self {
