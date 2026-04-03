@@ -196,6 +196,7 @@ fn init_tracing_subscriber_with_json_writer(svc_name: &'static str) {
             tracing_subscriber::fmt::layer()
                 .json()
                 .with_span_list(false) // disable the "spans" field in json
+                .with_current_span(true) // enable the "span" field in json
                 .with_span_events(FmtSpan::CLOSE) // record the duration
                 .with_writer(non_blocking_writer),
         )
