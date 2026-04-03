@@ -277,7 +277,7 @@ def evaluate_batch(
 
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            config,
+            config=config,
             torch_dtype=config.torch_dtype,
             low_cpu_mem_usage=True,
         ).to(device)
