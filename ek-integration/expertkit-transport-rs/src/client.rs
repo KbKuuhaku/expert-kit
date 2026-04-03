@@ -20,6 +20,8 @@ fn init_tracing_subscriber_with_json_writer() {
         return;
     }
 
+    log::info!("Initializing tracing subscriber in expertkit-transport-rs/src/client.rs...");
+
     // NOTE: Hardcode output directory for tracer JSON
     let output_dir = "benchmark_traces";
     if let Err(e) = fs::create_dir_all(output_dir) {
@@ -50,6 +52,7 @@ fn init_tracing_subscriber_with_json_writer() {
         .with(
             tracing_subscriber::fmt::layer()
                 .json()
+                .with_span_list(false) // disable the "spans" field in json
                 .with_span_events(FmtSpan::CLOSE) // record the duration
                 .with_writer(non_blocking_writer),
         )

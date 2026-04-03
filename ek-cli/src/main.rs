@@ -164,6 +164,7 @@ fn init_tracer_provider(svc_name: &'static str) -> SdkTracerProvider {
 }
 
 fn init_tracing_subscriber_with_json_writer(svc_name: &'static str) {
+    log::info!("Initializing tracing subscriber in {svc_name}...");
     // NOTE: Hardcode output directory for tracer JSON
     let output_dir = "benchmark_traces";
     if let Err(e) = fs::create_dir_all(output_dir) {
@@ -194,6 +195,7 @@ fn init_tracing_subscriber_with_json_writer(svc_name: &'static str) {
         .with(
             tracing_subscriber::fmt::layer()
                 .json()
+                .with_span_list(false) // disable the "spans" field in json
                 .with_span_events(FmtSpan::CLOSE) // record the duration
                 .with_writer(non_blocking_writer),
         )
