@@ -1,14 +1,68 @@
+use std::fs;
+
 use pyo3::prelude::*;
 use pyo3::types::PyAny;
+use tracing_appender::non_blocking::WorkerGuard;
 
 use crate::client::ExpertKitClient as RustExpertKitClient;
 use crate::utils::{TensorMetadata, pytorch_to_tch_tensor, tch_to_pytorch_tensor};
+use tracing::Level;
+use tracing_subscriber::{fmt::format::FmtSpan, layer::SubscriberExt, util::SubscriberInitExt};
 
 const DEFAULT_THREAD_NUM: usize = 16;
+
+fn init_tracing_subscriber_with_json_writer() -> Option<WorkerGuard> {
+    log::info!("Initializing tracing subscriber in expertkit-transport-rs/src/client.rs...");
+
+    // NOTE: Hardcode output directory for tracer JSON
+    let output_dir = "benchmark_traces";
+    if let Err(e) = fs::create_dir_all(output_dir) {
+        log::warn!(
+            "Unable to create {output_dir} and initialize tracing subscriber, abort ({e:?})"
+        );
+        return None;
+    }
+    // Create the output json file
+    let filename = format!("{}/{}.json", output_dir, "client");
+    log::info!("Creating JSON tracing log file {filename}...");
+    let file = match fs::File::create(filename) {
+        Ok(file) => file,
+        Err(e) => {
+            log::warn!("Unable to create file, abort ({e:?}).");
+            return None;
+        }
+    };
+
+    // Start a non-block writer storing JSON in background thread
+    let (non_blocking_writer, non_blocking_guard) = tracing_appender::non_blocking(file);
+
+    // Ref: https://docs.rs/tracing-subscriber/latest/tracing_subscriber/fmt/struct.Layer.html#method.with_span_events
+    let result = tracing_subscriber::registry()
+        .with(tracing_subscriber::filter::LevelFilter::from_level(
+            Level::INFO,
+        ))
+        .with(
+            tracing_subscriber::fmt::layer()
+                .json()
+                .with_span_list(false) // disable the "spans" field in json
+                .with_current_span(true) // enable the "span" field in json
+                .with_span_events(FmtSpan::CLOSE) // record the duration
+                .with_writer(non_blocking_writer),
+        )
+        .try_init();
+    match result {
+        Ok(()) => Some(non_blocking_guard),
+        Err(e) => {
+            log::warn!("Unable to initialize tracing subscriber ({e:?}).");
+            return None;
+        }
+    }
+}
 
 /// High-level ExpertKit client with routing and batching
 #[pyclass]
 pub struct PyExpertKitClient {
+    _guard: Option<WorkerGuard>,
     client: Option<RustExpertKitClient>,
     runtime: Option<tokio::runtime::Runtime>, // Shared runtime for all requests
 }
@@ -36,6 +90,7 @@ impl PyExpertKitClient {
             })?;
 
         Ok(Self {
+            _guard: init_tracing_subscriber_with_json_writer(),
             client: Some(RustExpertKitClient::new(controller_addr, timeout)),
             runtime: Some(runtime),
         })
