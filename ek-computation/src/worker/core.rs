@@ -4,7 +4,6 @@ use core::fmt;
 use ek_base::error::EKResult;
 use std::sync::{Arc, OnceLock};
 use tokio;
-use tracing::instrument;
 
 /// Async version of EKInstanceGate for non-compute operations
 pub struct EKInstanceGateAsync {
@@ -91,9 +90,9 @@ impl EKInstanceGateSync {
         assert!(req.sequences[0].experts.len() == 1);
         let exp_id = &req.sequences[0].experts[0];
 
-        // Start a span aligned with `forward_sync_core`
         let _span = tracing::info_span!(
             "expert_compute",
+            request_id = %req.request_id,
             expert_id = %exp_id,
         )
         .entered();
@@ -132,7 +131,6 @@ impl EKInstanceGateSync {
         Ok(resp)
     }
 
-    #[instrument(name = "expert_compute", level = "info", skip_all, fields(expert_id = %expert_id))]
     pub fn forward_sync_core(
         &self,
         expert_id: ExpertIdRef<'_>,

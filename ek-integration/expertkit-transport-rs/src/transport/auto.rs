@@ -1,7 +1,6 @@
 use super::*;
 use crate::transport::{grpc::GrpcTransport, shm::ShmTransport};
 use log::info;
-use tracing::instrument;
 
 #[cfg(feature = "rdma")]
 use crate::transport::rdma::RdmaTransport;
@@ -107,12 +106,14 @@ impl AutoTransport {
 
 #[async_trait]
 impl Transport for AutoTransport {
-    #[instrument(
+    #[tracing::instrument(
+        "send_request",
         level = "info",
         skip_all,
         fields(
-            batch_size=requests.len(),
-            dest=%endpoint.grpc_addr,
+            batch_id=tracing::field::Empty,
+            request_id=tracing::field::Empty,
+            batch_size=tracing::field::Empty,
             channel=%endpoint.channel,
         )
     )]
@@ -121,6 +122,15 @@ impl Transport for AutoTransport {
         endpoint: &WorkerEndpoint,
         requests: Vec<ExpertRequest>,
     ) -> Result<Vec<ExpertResponse>> {
+        // NOTE: implementation when there is only one request,
+        // batch implementation is not handled
+        if let Some(req) = requests.first() {
+            let span = tracing::Span::current();
+            span.record("batch_id", req.batch_id);
+            span.record("request_id", req.request_id);
+            span.record("batch_size", req.batch_size);
+        }
+
         // Select transport based on worker's advertised channel type
         match endpoint.channel.as_str() {
             "grpc" => {

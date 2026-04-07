@@ -252,6 +252,13 @@ pub async fn worker_main(settings: &Settings) -> EKResult<()> {
                         let input_tensor = req.input_tensor();
 
                         let output_tensor = loop {
+                            let _span = tracing::info_span!(
+                                "expert_compute",
+                                request_id = %req.id(),
+                                expert_id = %req.expert_id(),
+                            )
+                            .entered();
+
                             match gate.forward_sync_core(&expert_id, input_tensor) {
                                 Ok(result) => {
                                     log::debug!(
@@ -338,6 +345,13 @@ pub async fn worker_main(settings: &Settings) -> EKResult<()> {
                         let expert_id = req.expert_id();
                         let input_tensor = req.input_tensor();
                         let output_tensor = loop {
+                            let _span = tracing::info_span!(
+                                "expert_compute",
+                                request_id = %req.id(),
+                                expert_id = %req.expert_id(),
+                            )
+                            .entered();
+
                             match gate.forward_sync_core(&expert_id, input_tensor) {
                                 Ok(result) => {
                                     log::debug!(

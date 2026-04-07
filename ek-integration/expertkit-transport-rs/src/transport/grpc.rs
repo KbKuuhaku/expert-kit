@@ -105,6 +105,7 @@ impl Transport for GrpcTransport {
                 instance_id: "0".to_string(),
                 tensor: req.tensor_data, // Use as-is, don't concatenate!
                 sequences,
+                request_id: req.request_id,
             };
 
             debug!(

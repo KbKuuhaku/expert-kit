@@ -9,6 +9,7 @@ message ForwardReq {
   repeated SequenceInfo sequences = 2;
   // dimension: [seq,dim]
   bytes tensor = 3;
+  uint64 request_id = 4;
 }
 
 message ForwardResp {

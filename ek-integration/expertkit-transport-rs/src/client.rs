@@ -2,12 +2,20 @@ use anyhow::Result;
 use log::{debug, info};
 use std::collections::HashMap;
 use std::sync::Arc;
+use tracing::instrument;
 
 use crate::routing::RoutingClient;
 use crate::transport::{ExpertRequest, Transport, auto::AutoTransport};
 use crate::utils::{deserialize_safetensor_2_tch_tensor, serialize_tch_tensor_2_safetensor};
 
 use tch::Tensor;
+
+use std::sync::atomic::{AtomicU64, Ordering};
+static BATCH_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn next_batch_id() -> u64 {
+    BATCH_ID_COUNTER.fetch_add(1, Ordering::SeqCst)
+}
 
 /// High-level client with worker-level batching and routing
 pub struct ExpertKitClient {
@@ -37,6 +45,14 @@ impl ExpertKitClient {
     }
 
     /// Forward expert computation with direct tensor access
+    #[instrument(
+        level = "info",
+        skip_all,
+        fields(
+            batch_size=expert_ids.len(),
+            batch_id=tracing::field::Empty,  // placeholder for batch id
+        )
+    )]
     pub async fn forward_expert_tensor(
         &self,
         expert_ids: Vec<Vec<String>>, // [batch_size, n_routed_experts]
@@ -44,6 +60,10 @@ impl ExpertKitClient {
     ) -> Result<Tensor> {
         let batch_size = hidden_state.size()[0] as usize;
         let hidden_dim = hidden_state.size()[1] as usize;
+        let batch_id = next_batch_id();  // Self-increment batch id
+
+        let span = tracing::Span::current();
+        span.record("batch_id", batch_id);
 
         debug!(
             "[Client] forward_expert_tensor: batch_size={}, hidden_dim={}, device={:?}",
@@ -142,8 +162,13 @@ impl ExpertKitClient {
                 );
 
                 // Create request
-                let request =
-                    ExpertRequest::new(expert_id_clone.clone(), tensor_bytes, num_sequences);
+                let request = ExpertRequest::new(
+                    batch_id,
+                    expert_id_clone.clone(), 
+                    tensor_bytes, 
+                    num_sequences,
+                    batch_size,
+                );
 
                 let send_t = std::time::Instant::now();
                 let responses = transport

@@ -1,3 +1,5 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+
 use anyhow::Result;
 use async_trait::async_trait;
 
@@ -11,6 +13,12 @@ pub mod rdma;
 // Re-export WorkerEndpoint from grpc proto
 pub use grpc::proto::ek::control::v1::WorkerEndpoint;
 
+static REQUEST_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn next_request_id() -> u64 {
+    REQUEST_ID_COUNTER.fetch_add(1, Ordering::SeqCst)
+}
+
 #[derive(Debug, Clone)]
 #[allow(unused)]
 pub enum TransportType {
@@ -22,18 +30,30 @@ pub enum TransportType {
 /// Request for a single expert computation
 #[derive(Debug, Clone)]
 pub struct ExpertRequest {
+    pub batch_id: u64,   // unique id for the batch
+    pub request_id: u64, // unique id for the request
     pub expert_id: String,
     pub tensor_data: Vec<u8>, // Safetensors blob containing batched sequences
     pub num_sequences: usize, // Number of sequences in this batch
+    pub batch_size: usize,
 }
 
 impl ExpertRequest {
     /// Create a new expert request with a batched tensor
-    pub fn new(expert_id: String, tensor_data: Vec<u8>, num_sequences: usize) -> Self {
+    pub fn new(
+        batch_id: u64,
+        expert_id: String,
+        tensor_data: Vec<u8>,
+        num_sequences: usize,
+        batch_size: usize,
+    ) -> Self {
         Self {
+            batch_id,
+            request_id: next_request_id(),
             expert_id,
             tensor_data,
             num_sequences,
+            batch_size,
         }
     }
 }

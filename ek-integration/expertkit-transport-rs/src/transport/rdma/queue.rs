@@ -475,9 +475,7 @@ pub struct ShmqWorkerReq {
 }
 
 impl ShmqWorkerReq {
-    pub fn new(expert_id: &str, input_tensor: &[u8]) -> Self {
-        static ID: AtomicUsize = AtomicUsize::new(1);
-
+    pub fn new(id: usize, expert_id: &str, input_tensor: &[u8]) -> Self {
         assert!(expert_id.len() < 64, "expert_id too long");
         assert!(
             input_tensor.len() <= MAX_TENSOR_SIZE,
@@ -490,7 +488,7 @@ impl ShmqWorkerReq {
         expert_id_array[..copy_len].copy_from_slice(&expert_id_bytes[..copy_len]);
 
         Self {
-            id: ID.fetch_add(1, Ordering::SeqCst),
+            id,
             expert_id: expert_id_array,
             input_tensor: input_tensor.to_vec(),
         }

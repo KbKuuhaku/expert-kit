@@ -10,7 +10,6 @@ use nix::{
 use std::ffi::c_void;
 use std::num::NonZero;
 use std::ptr::NonNull;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Queue error types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -176,7 +175,8 @@ impl ShmQueue {
 
         // Write data to slot
         let slot_offset = meta.tail * self.slot_size;
-        let slot = unsafe { std::slice::from_raw_parts_mut(self.data.add(slot_offset), self.slot_size) };
+        let slot =
+            unsafe { std::slice::from_raw_parts_mut(self.data.add(slot_offset), self.slot_size) };
         item.write_to_slice(slot);
 
         // Update tail
@@ -198,7 +198,8 @@ impl ShmQueue {
 
         // Read data from slot
         let slot_offset = meta.head * self.slot_size;
-        let slot = unsafe { std::slice::from_raw_parts(self.data.add(slot_offset), self.slot_size) };
+        let slot =
+            unsafe { std::slice::from_raw_parts(self.data.add(slot_offset), self.slot_size) };
         let item = T::from_bytes(slot);
 
         // Update head
@@ -239,11 +240,8 @@ pub struct ShmqWorkerReq {
     pub input_tensor: Vec<u8>,
 }
 
-static REQ_ID_COUNTER: AtomicUsize = AtomicUsize::new(1);
-
 impl ShmqWorkerReq {
-    pub fn new(expert_id: &str, input_tensor: &[u8]) -> Self {
-        let id = REQ_ID_COUNTER.fetch_add(1, Ordering::SeqCst);
+    pub fn new(id: usize, expert_id: &str, input_tensor: &[u8]) -> Self {
         Self {
             id,
             expert_id: expert_id.to_string(),
@@ -336,8 +334,8 @@ mod tests {
     fn test_queue_basic() {
         let mut queue = ShmQueue::new("test_basic", 10, 1024).unwrap();
 
-        let req1 = ShmqWorkerReq::new("expert_1", b"test_data_1");
-        let req2 = ShmqWorkerReq::new("expert_2", b"test_data_2");
+        let req1 = ShmqWorkerReq::new(0, "expert_1", b"test_data_1");
+        let req2 = ShmqWorkerReq::new(0, "expert_2", b"test_data_2");
 
         queue.send(&req1).unwrap();
         queue.send(&req2).unwrap();
@@ -350,7 +348,10 @@ mod tests {
         assert_eq!(recv2.expert_id, "expert_2");
         assert_eq!(recv2.input_tensor, b"test_data_2");
 
-        assert!(matches!(queue.recv::<ShmqWorkerReq>(), Err(ShmQueueError::Empty)));
+        assert!(matches!(
+            queue.recv::<ShmqWorkerReq>(),
+            Err(ShmQueueError::Empty)
+        ));
     }
 
     #[test]
@@ -358,7 +359,7 @@ mod tests {
         let mut sender = ShmQueue::new("test_open", 10, 1024).unwrap();
         let mut receiver = ShmQueue::open("test_open", 10, 1024).unwrap();
 
-        let req = ShmqWorkerReq::new("expert_test", b"shared_data");
+        let req = ShmqWorkerReq::new(0, "expert_test", b"shared_data");
         sender.send(&req).unwrap();
 
         let recv: ShmqWorkerReq = receiver.recv().unwrap();

@@ -251,8 +251,8 @@ impl Transport for RdmaTransport {
         // Send all requests - only locks req_queue
         let mut request_ids = Vec::new();
         for req in &requests {
-            let shm_req = ShmqWorkerReq::new(&req.expert_id, &req.tensor_data);
-            let req_id = shm_req.id();
+            let req_id = req.request_id;
+            let shm_req = ShmqWorkerReq::new(req_id, &req.expert_id, &req.tensor_data);
 
             // Send request via RDMA
             let req_queue_clone = req_queue_arc.clone();

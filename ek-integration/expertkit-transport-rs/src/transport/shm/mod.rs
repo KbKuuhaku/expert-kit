@@ -170,8 +170,8 @@ impl Transport for ShmTransport {
         {
             let mut req_queue = req_queue_arc.lock();
             for req in &requests {
-                let shm_req = ShmqWorkerReq::new(&req.expert_id, &req.tensor_data);
-                let req_id = shm_req.id;
+                let req_id = req.request_id as usize;
+                let shm_req = ShmqWorkerReq::new(req_id, &req.expert_id, &req.tensor_data);
 
                 // Send request
                 req_queue

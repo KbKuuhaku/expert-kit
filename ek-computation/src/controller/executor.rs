@@ -233,6 +233,8 @@ impl NaiveExecutor {
                                 instance_id: "0".into(),
                                 tensor: serialized_tensor,
                                 sequences: seqs,
+                                // TODO: hardcode request id
+                                request_id: 0,
                             };
 
                             let start = time::Instant::now();
@@ -254,7 +256,7 @@ impl NaiveExecutor {
                 }
                 ExpertClient::Shm((send_channel, recv_channel)) => {
                     let fu = async move {
-                        let req = ShmqWorkerReq::new(expert_id.as_ref(), &serialized_tensor);
+                        let req = ShmqWorkerReq::new(0, expert_id.as_ref(), &serialized_tensor);
 
                         let start = time::Instant::now();
                         let _d = Defers::defer(Box::new(move || {
@@ -308,7 +310,7 @@ impl NaiveExecutor {
                 }
                 ExpertClient::Rdma((send_channel, recv_channel)) => {
                     let fu = async move {
-                        let req = ShmqWorkerReq::new(expert_id.as_ref(), &serialized_tensor);
+                        let req = ShmqWorkerReq::new(0, expert_id.as_ref(), &serialized_tensor);
 
                         let start = time::Instant::now();
                         let _d = Defers::defer(Box::new(move || {
