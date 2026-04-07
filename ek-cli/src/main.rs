@@ -163,10 +163,10 @@ fn init_tracer_provider(svc_name: &'static str) -> SdkTracerProvider {
     provider
 }
 
-fn init_tracing_subscriber_with_json_writer(svc_name: &'static str) {
-    log::info!("Initializing tracing subscriber in {svc_name}...");
+fn init_tracing_subscriber_with_json_writer(svc_name: &'static str, channel: &str) {
+    log::info!("Initializing tracing subscriber in {svc_name} (Channel: {channel})...");
     // NOTE: Hardcode output directory for tracer JSON
-    let output_dir = "benchmark_traces";
+    let output_dir = format!("benchmark_traces/{channel}");
     if let Err(e) = fs::create_dir_all(output_dir) {
         log::warn!(
             "Unable to create {output_dir} and initialize tracing subscriber, abort ({e:?})"

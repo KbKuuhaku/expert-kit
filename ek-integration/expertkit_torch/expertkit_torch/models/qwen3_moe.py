@@ -35,7 +35,7 @@ from transformers import (
 from transformers.utils.logging import set_verbosity_error
 from transformers.models.qwen3_moe import modeling_qwen3_moe as qwen3_moe
 from torch import nn
-from expertkit_torch.grpc_client_new import ExpertKitClient
+from expertkit_torch.expert_kit_client import ExpertKitClient
 
 from expertkit_torch.utils.profiler_manager import ProfilerManager
 from line_profiler import profile
@@ -60,6 +60,7 @@ def intercept_moe(
     ek_addr: str = "localhost:5002",
     ek_model_name: str = "qwen3",
     enable_direct_path: bool = True,
+    channel: str = "grpc",
 ):
     class InterceptedMoE(nn.Module):
         client: ExpertKitClient = None
@@ -73,6 +74,7 @@ def intercept_moe(
                 InterceptedMoE.client = ExpertKitClient(
                     controller_addr=ek_addr,
                     timeout_sec=DEFAULT_TIMEOUT_INTVAL,
+                    channel=channel,
                 )
                 print(
                     f"[ExpertKit] Client initialized: controller={ek_addr}, direct_path={enable_direct_path}"
@@ -238,6 +240,7 @@ def evaluate_batch(
     ek_addr="localhost:5002",
     ek_model_name="qwen3",
     enable_direct_path=True,
+    channel: str = "grpc",
 ) -> Dict[str, Any]:
     """
     Batch inference with performance profiling.
@@ -263,6 +266,7 @@ def evaluate_batch(
         ek_addr=ek_addr,
         ek_model_name=ek_model_name,
         enable_direct_path=enable_direct_path,
+        channel=channel,
     )
 
     # Load the tokenizer and the model only once
@@ -452,6 +456,12 @@ def main():
         default=512,
         help="The number of prompts to use for evaluation.",
     )
+    parser.add_argument(
+        "--channel",
+        type=str,
+        default="grpc",
+        help="The number of prompts to use for evaluation.",
+    )
     args = parser.parse_args()
 
     if args.dataset == "none":
@@ -492,6 +502,7 @@ def main():
                 ek_model_name=args.ek_model_name,
                 enable_direct_path=args.ek_direct_path,
                 output_max_length=args.output_max,
+                channel=args.channel,
             )
             aggregated_results.extend(batch_result["results"])
 

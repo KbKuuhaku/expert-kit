@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from expertkit_transport import ExpertKitClient as RustExpertKitClient
+
     RUST_CLIENT_AVAILABLE = True
 except ImportError:
     RUST_CLIENT_AVAILABLE = False
@@ -22,7 +23,12 @@ class ExpertKitClient:
         output = client.forward_expert(expert_ids, hidden_state)
     """
 
-    def __init__(self, controller_addr: str, timeout_sec: float = 2.0):
+    def __init__(
+        self,
+        controller_addr: str,
+        timeout_sec: float = 2.0,
+        channel: str = "grpc",
+    ):
         """
         Initialize and connect ExpertKit client.
 
@@ -36,11 +42,12 @@ class ExpertKitClient:
             )
 
         # Create Rust client and connect immediately
-        self.rust_client = RustExpertKitClient(controller_addr, timeout_sec)
+        self.rust_client = RustExpertKitClient(controller_addr, timeout_sec, channel)
         self.rust_client.connect()
 
         logger.info(
-            f"ExpertKitClient connected: controller={controller_addr}, timeout={timeout_sec}s")
+            f"ExpertKitClient connected: controller={controller_addr}, timeout={timeout_sec}s"
+        )
 
     def forward_expert(
         self, expert_ids: List[List[str]], hidden_state: torch.Tensor
@@ -57,9 +64,7 @@ class ExpertKitClient:
         Returns:
             Output tensor [batch_size, n_routed_experts, expert_dim] (same device)
         """
-        logger.debug(
-            f"Sending batch_size={len(expert_ids)}"
-        )
+        logger.debug(f"Sending batch_size={len(expert_ids)}")
 
         # Pass tensor directly to Rust
         # Rust accesses tensor memory directly via pointer

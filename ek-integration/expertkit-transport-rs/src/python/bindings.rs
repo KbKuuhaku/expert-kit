@@ -11,12 +11,14 @@ use tracing_subscriber::{fmt::format::FmtSpan, layer::SubscriberExt, util::Subsc
 
 const DEFAULT_THREAD_NUM: usize = 16;
 
-fn init_tracing_subscriber_with_json_writer() -> Option<WorkerGuard> {
-    log::info!("Initializing tracing subscriber in expertkit-transport-rs/src/client.rs...");
+fn init_tracing_subscriber_with_json_writer(channel: &str) -> Option<WorkerGuard> {
+    log::info!(
+        "Initializing tracing subscriber in expertkit-transport-rs/src/client.rs... (Channel: {channel}..."
+    );
 
     // NOTE: Hardcode output directory for tracer JSON
-    let output_dir = "benchmark_traces";
-    if let Err(e) = fs::create_dir_all(output_dir) {
+    let output_dir = format!("benchmark_traces/{channel}");
+    if let Err(e) = fs::create_dir_all(&output_dir) {
         log::warn!(
             "Unable to create {output_dir} and initialize tracing subscriber, abort ({e:?})"
         );
@@ -70,7 +72,11 @@ pub struct PyExpertKitClient {
 #[pymethods]
 impl PyExpertKitClient {
     #[new]
-    fn new(controller_addr: String, timeout_sec: Option<f64>) -> PyResult<Self> {
+    fn new(
+        controller_addr: String,
+        timeout_sec: Option<f64>,
+        channel: Option<&str>,
+    ) -> PyResult<Self> {
         if env_logger::try_init().is_ok() {
             log::info!("Logger initialized");
         }
@@ -90,7 +96,7 @@ impl PyExpertKitClient {
             })?;
 
         Ok(Self {
-            _guard: init_tracing_subscriber_with_json_writer(),
+            _guard: init_tracing_subscriber_with_json_writer(channel),
             client: Some(RustExpertKitClient::new(controller_addr, timeout)),
             runtime: Some(runtime),
         })
