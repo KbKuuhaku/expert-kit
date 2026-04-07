@@ -46,6 +46,7 @@ impl ExpertKitClient {
 
     /// Forward expert computation with direct tensor access
     #[instrument(
+        "send_batch",
         level = "info",
         skip_all,
         fields(
