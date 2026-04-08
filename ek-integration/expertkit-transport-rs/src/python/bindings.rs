@@ -96,7 +96,7 @@ impl PyExpertKitClient {
             })?;
 
         Ok(Self {
-            _guard: init_tracing_subscriber_with_json_writer(channel),
+            _guard: init_tracing_subscriber_with_json_writer(channel.unwrap_or("grpc")),
             client: Some(RustExpertKitClient::new(controller_addr, timeout)),
             runtime: Some(runtime),
         })

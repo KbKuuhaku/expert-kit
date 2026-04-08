@@ -167,7 +167,7 @@ fn init_tracing_subscriber_with_json_writer(svc_name: &'static str, channel: &st
     log::info!("Initializing tracing subscriber in {svc_name} (Channel: {channel})...");
     // NOTE: Hardcode output directory for tracer JSON
     let output_dir = format!("benchmark_traces/{channel}");
-    if let Err(e) = fs::create_dir_all(output_dir) {
+    if let Err(e) = fs::create_dir_all(&output_dir) {
         log::warn!(
             "Unable to create {output_dir} and initialize tracing subscriber, abort ({e:?})"
         );
@@ -329,8 +329,9 @@ fn main() {
             Command::Worker {} => {
                 let settings = get_ek_settings();
                 let worker_id = &settings.worker.id;
+                let channel = &settings.worker.channel;
                 // Must place tracing subscriber init in tokio runtime block
-                init_tracing_subscriber_with_json_writer(worker_id);
+                init_tracing_subscriber_with_json_writer(worker_id, channel);
                 worker_main(settings).await
             }
             Command::Controller {} => {
