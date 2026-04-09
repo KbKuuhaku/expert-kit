@@ -254,7 +254,7 @@ pub async fn worker_main(settings: &Settings) -> EKResult<()> {
                         let output_tensor = loop {
                             let _span = tracing::info_span!(
                                 "expert_compute",
-                                request_id = %req.id(),
+                                request_id = req.id(),
                                 expert_id = %req.expert_id(),
                             )
                             .entered();
@@ -347,7 +347,7 @@ pub async fn worker_main(settings: &Settings) -> EKResult<()> {
                         let output_tensor = loop {
                             let _span = tracing::info_span!(
                                 "expert_compute",
-                                request_id = %req.id(),
+                                request_id = req.id(),
                                 expert_id = %req.expert_id(),
                             )
                             .entered();

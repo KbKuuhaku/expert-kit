@@ -92,7 +92,7 @@ impl EKInstanceGateSync {
 
         let _span = tracing::info_span!(
             "expert_compute",
-            request_id = %req.request_id,
+            request_id = req.request_id,
             expert_id = %exp_id,
         )
         .entered();

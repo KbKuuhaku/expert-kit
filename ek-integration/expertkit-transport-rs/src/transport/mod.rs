@@ -35,7 +35,6 @@ pub struct ExpertRequest {
     pub expert_id: String,
     pub tensor_data: Vec<u8>, // Safetensors blob containing batched sequences
     pub num_sequences: usize, // Number of sequences in this batch
-    pub batch_size: usize,
 }
 
 impl ExpertRequest {
@@ -45,7 +44,6 @@ impl ExpertRequest {
         expert_id: String,
         tensor_data: Vec<u8>,
         num_sequences: usize,
-        batch_size: usize,
     ) -> Self {
         Self {
             batch_id,
@@ -53,7 +51,6 @@ impl ExpertRequest {
             expert_id,
             tensor_data,
             num_sequences,
-            batch_size,
         }
     }
 }

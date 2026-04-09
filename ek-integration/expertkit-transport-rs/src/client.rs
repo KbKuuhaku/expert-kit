@@ -168,7 +168,6 @@ impl ExpertKitClient {
                     expert_id_clone.clone(), 
                     tensor_bytes, 
                     num_sequences,
-                    batch_size,
                 );
 
                 let send_t = std::time::Instant::now();

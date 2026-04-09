@@ -113,8 +113,7 @@ impl Transport for AutoTransport {
         fields(
             batch_id=tracing::field::Empty,
             request_id=tracing::field::Empty,
-            batch_size=tracing::field::Empty,
-            channel=%endpoint.channel,
+            seq_len=tracing::field::Empty,
         )
     )]
     async fn send_batch(
@@ -128,7 +127,7 @@ impl Transport for AutoTransport {
             let span = tracing::Span::current();
             span.record("batch_id", req.batch_id);
             span.record("request_id", req.request_id);
-            span.record("batch_size", req.batch_size);
+            span.record("seq_len", req.num_sequences);
         }
 
         // Select transport based on worker's advertised channel type
