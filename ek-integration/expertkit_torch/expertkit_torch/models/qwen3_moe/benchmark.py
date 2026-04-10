@@ -102,7 +102,7 @@ class Qwen3MoEBenchmark:
         )
         attention_mask = torch.ones_like(
             input_ids,
-            device=model.device,
+            device=self.model.device,
         )  # not masking anything
 
         self.model.generate(
