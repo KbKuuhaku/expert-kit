@@ -77,14 +77,16 @@ class Qwen3MoEBenchmark:
 
         config = Qwen3MoeConfig.from_pretrained(self.model_path)
         config.num_hidden_layers = 1  # load only one layer
-        self.VOCAB_SIZE = int(config.vocab_size) if config.vocab_size else 0
+        Qwen3MoEBenchmark.VOCAB_SIZE = (
+            int(config.vocab_size) if config.vocab_size else 0
+        )
 
         model = Qwen3MoeForCausalLM.from_pretrained(
             self.model_path,
             config=config,
             dtype=config.dtype,
             low_cpu_mem_usage=True,
-            device_map="auto",
+            device_map=device,
         )
         Qwen3MoEBenchmark._MODEL_SINGLETON = model
         print(model)
@@ -94,13 +96,13 @@ class Qwen3MoEBenchmark:
     @torch.inference_mode()
     def run(self, seq_len: int = 1) -> None:
         input_ids = torch.randint(
-            self.VOCAB_SIZE,
+            Qwen3MoEBenchmark.VOCAB_SIZE,
             (self.batch_size, seq_len),
             device=self.model.device,
         )
         attention_mask = torch.ones_like(
             input_ids,
-            device=self.model.device,
+            device=model.device,
         )  # not masking anything
 
         self.model.generate(
