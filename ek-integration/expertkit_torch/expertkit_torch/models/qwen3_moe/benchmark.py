@@ -124,7 +124,7 @@ def main(args: argparse.Namespace) -> None:
             enable_ek=args.enable_ek,
             ek_model_name=args.ek_model_name,
             ek_addr=args.ek_addr,
-            enable_direct_path=args.enable_direct_path,
+            enable_direct_path=args.ek_direct_path,
             channel=args.channel,
         )
         for i in range(get_iterations(batch_size)):
