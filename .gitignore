@@ -9,6 +9,7 @@ build/
 # Static files
 vendor
 data
+pyrightconfig.json
 
 # Python related
 __pycache__

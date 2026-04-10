@@ -171,6 +171,7 @@ impl ExpertKitClient {
                 );
 
                 let send_t = std::time::Instant::now();
+                // TODO: change into real batch version
                 let responses = transport
                     .send_batch(&worker_endpoint, vec![request])
                     .await?;

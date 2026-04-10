@@ -12,7 +12,7 @@ from transformers.models.deepseek_v2 import modeling_deepseek_v2 as ds_v2
 from transformers.models.deepseek_v2 import configuration_deepseek_v2 as ds_v2_config
 from transformers import modeling_utils as mu
 from torch import nn
-from expertkit_torch.grpc_client_new import ExpertKitClient
+from expertkit_torch.expert_kit_client import ExpertKitClient
 
 from expertkit_torch.utils.profiler_manager import ProfilerManager
 from line_profiler import profile
@@ -76,8 +76,7 @@ def intercept_moe(
             self.num_experts = config.n_routed_experts
             self.top_k = config.num_experts_per_tok
             self.norm_topk_prob = config.norm_topk_prob
-            self.routed_scaling_factor = getattr(
-                config, "routed_scaling_factor", 1.0)
+            self.routed_scaling_factor = getattr(config, "routed_scaling_factor", 1.0)
             self.topk_method = getattr(config, "topk_method", "greedy")
             self.n_group = getattr(config, "n_group", 1)
             self.topk_group = getattr(config, "topk_group", 1)
@@ -88,11 +87,11 @@ def intercept_moe(
                     timeout_sec=DEFAULT_TIMEOUT_INTVAL,
                 )
                 print(
-                    f"[ExpertKit] Client initialized: controller={ek_addr}, direct_path={enable_direct_path}")
+                    f"[ExpertKit] Client initialized: controller={ek_addr}, direct_path={enable_direct_path}"
+                )
 
             # gating
-            self.gate = nn.Linear(
-                config.hidden_size, self.num_experts, bias=False)
+            self.gate = nn.Linear(config.hidden_size, self.num_experts, bias=False)
 
             if not enable_ek:
                 self.experts = nn.ModuleList(
@@ -114,8 +113,7 @@ def intercept_moe(
             """
             V2 gating: softmax scoring with greedy or group_limited_greedy routing.
             """
-            router_logits = self.gate(
-                hidden_states.view(-1, hidden_states.shape[-1]))
+            router_logits = self.gate(hidden_states.view(-1, hidden_states.shape[-1]))
             scores = F.softmax(router_logits, dim=1, dtype=torch.float)
 
             if self.topk_method == "greedy":
@@ -124,11 +122,9 @@ def intercept_moe(
                 )
             elif self.topk_method == "group_limited_greedy":
                 # Group experts and select top groups first
-                group_scores = (
-                    scores.view(-1, self.n_group,
-                                self.num_experts // self.n_group)
-                    .max(dim=-1)[0]
-                )
+                group_scores = scores.view(
+                    -1, self.n_group, self.num_experts // self.n_group
+                ).max(dim=-1)[0]
                 group_idx = torch.topk(
                     group_scores, k=self.topk_group, dim=-1, sorted=False
                 )[1]
@@ -179,8 +175,7 @@ def intercept_moe(
             outputs = self.client.forward_expert(
                 expert_ids=expert_ids, hidden_state=hidden_states
             )
-            outputs = outputs.to(device=hidden_states.device,
-                                 dtype=hidden_states.dtype)
+            outputs = outputs.to(device=hidden_states.device, dtype=hidden_states.dtype)
             expanded_weights = topk_weights.unsqueeze(-1)
             output = torch.sum(expanded_weights * outputs, dim=1)
 
@@ -212,14 +207,11 @@ def intercept_moe(
                 token_indices, weight_indices = torch.where(mask)
 
                 if token_indices.numel() > 0:
-                    expert_weights = topk_weights[token_indices,
-                                                  weight_indices]
+                    expert_weights = topk_weights[token_indices, weight_indices]
                     expert_input = hidden_states[token_indices]
                     expert_output = expert(expert_input)
-                    weighted_output = expert_output * \
-                        expert_weights.unsqueeze(-1)
-                    final_hidden_states.index_add_(
-                        0, token_indices, weighted_output)
+                    weighted_output = expert_output * expert_weights.unsqueeze(-1)
+                    final_hidden_states.index_add_(0, token_indices, weighted_output)
 
             return final_hidden_states.type(hidden_states.dtype)
 
@@ -292,14 +284,13 @@ def evaluate_batch(
             pretrained_model_name_or_path=model_path,
         )
     if model is None:
-        model_config = ds_v2_config.DeepseekV2Config.from_pretrained(
-            model_path)
+        model_config = ds_v2_config.DeepseekV2Config.from_pretrained(model_path)
         model = ds_v2.DeepseekV2ForCausalLM.from_pretrained(
             model_path,
             config=model_config,
             local_files_only=True,
             device_map=device,
-            torch_dtype=torch.bfloat16 if device == "cuda" else "auto"
+            torch_dtype=torch.bfloat16 if device == "cuda" else "auto",
         )
 
     # Initialize profiler manager with context manager
@@ -330,7 +321,7 @@ def evaluate_batch(
         generated_ids = model.generate(
             **model_inputs,
             max_new_tokens=output_max_length,
-            pad_token_id=tokenizer.eos_token_id
+            pad_token_id=tokenizer.eos_token_id,
         )
 
         # Process generated sequences
@@ -343,25 +334,24 @@ def evaluate_batch(
             # Remove padding tokens
             if tokenizer.pad_token_id is not None:
                 output_ids = [
-                    token_id for token_id in output_ids if token_id != tokenizer.pad_token_id]
+                    token_id
+                    for token_id in output_ids
+                    if token_id != tokenizer.pad_token_id
+                ]
 
-            content = tokenizer.decode(
-                output_ids,
-                skip_special_tokens=True
-            ).strip("\n")
+            content = tokenizer.decode(output_ids, skip_special_tokens=True).strip("\n")
 
-            results.append({
-                "prompt": prompts[i],
-                "content": content,
-                "input_tokens": len(model_inputs.input_ids[i]),
-                "output_tokens": len(output_ids),
-            })
+            results.append(
+                {
+                    "prompt": prompts[i],
+                    "content": content,
+                    "input_tokens": len(model_inputs.input_ids[i]),
+                    "output_tokens": len(output_ids),
+                }
+            )
 
         # Context manager exit will automatically unwrap the model and print the report
-        return {
-            "results": results,
-            "performance": profiler.report()
-        }
+        return {"results": results, "performance": profiler.report()}
 
 
 def sharegpt(path, max_prompt_len=None):
@@ -413,7 +403,7 @@ def main():
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Enable direct worker communication (bypasses controller forwarding). "
-             "Implements request decomposition to match worker's expected format.",
+        "Implements request decomposition to match worker's expected format.",
     )
     parser.add_argument(
         "--detail_profile",
@@ -470,18 +460,18 @@ def main():
             "How does MoE improve model efficiency?",
             "Compare MoE with dense models.",
         ] * args.prompt_num
-        test_prompts = test_prompts[:args.prompt_num]
+        test_prompts = test_prompts[: args.prompt_num]
     elif args.dataset == "sharegpt":
         # Validate that dataset_path is provided
         if args.dataset_path is None:
             raise ValueError(
-                "You must provide --dataset_path when using the 'sharegpt' dataset.")
+                "You must provide --dataset_path when using the 'sharegpt' dataset."
+            )
         # Load prompts from ShareGPT dataset
-        test_prompts = sharegpt(
-            args.dataset_path, max_prompt_len=args.max_prompt_len)
+        test_prompts = sharegpt(args.dataset_path, max_prompt_len=args.max_prompt_len)
         if len(test_prompts) < args.prompt_num:
             test_prompts *= (args.prompt_num // len(test_prompts)) + 1
-        test_prompts = test_prompts[:args.prompt_num]
+        test_prompts = test_prompts[: args.prompt_num]
     else:
         raise ValueError("Invalid dataset specified.")
 
@@ -493,7 +483,7 @@ def main():
                 break
             batch_result = evaluate_batch(
                 model_path=args.model_path,
-                prompts=test_prompts[prompts:prompts + batch_size],
+                prompts=test_prompts[prompts : prompts + batch_size],
                 enable_ek=args.enable_ek,
                 ek_addr=args.ek_addr,
                 ek_model_name=args.ek_model_name,
@@ -509,7 +499,8 @@ def main():
             print(f"Prompt: {result['prompt']}")
             print(f"Response: {result['content']}")
             print(
-                f"Input Tokens: {result['input_tokens']}, Output Tokens: {result['output_tokens']}")
+                f"Input Tokens: {result['input_tokens']}, Output Tokens: {result['output_tokens']}"
+            )
             print("-" * 40)
 
 

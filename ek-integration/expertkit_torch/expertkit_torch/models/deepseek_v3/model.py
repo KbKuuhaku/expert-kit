@@ -11,7 +11,7 @@ from transformers.models.deepseek_v3 import modeling_deepseek_v3 as ds_v3
 from transformers.models.deepseek_v3 import configuration_deepseek_v3 as ds_v3_config
 from transformers import modeling_utils as mu
 from torch import nn
-from expertkit_torch.grpc_client_new import ExpertKitClient
+from expertkit_torch.expert_kit_client import ExpertKitClient
 
 from expertkit_torch.utils.profiler_manager import ProfilerManager
 from line_profiler import profile
@@ -72,7 +72,8 @@ def intercept_moe(
                     timeout_sec=DEFAULT_TIMEOUT_INTVAL,
                 )
                 print(
-                    f"[ExpertKit] Client initialized: controller={ek_addr}, direct_path={enable_direct_path}")
+                    f"[ExpertKit] Client initialized: controller={ek_addr}, direct_path={enable_direct_path}"
+                )
             if not enable_ek:
                 self.experts = nn.ModuleList(
                     [
@@ -256,7 +257,7 @@ def evaluate_batch(
         generated_ids = model.generate(
             **model_inputs,
             max_new_tokens=output_max_length,
-            pad_token_id=tokenizer.eos_token_id
+            pad_token_id=tokenizer.eos_token_id,
         )
 
         # Process generated sequences
@@ -269,25 +270,24 @@ def evaluate_batch(
             # Remove padding tokens
             if tokenizer.pad_token_id is not None:
                 output_ids = [
-                    token_id for token_id in output_ids if token_id != tokenizer.pad_token_id]
+                    token_id
+                    for token_id in output_ids
+                    if token_id != tokenizer.pad_token_id
+                ]
 
-            content = tokenizer.decode(
-                output_ids,
-                skip_special_tokens=True
-            ).strip("\n")
+            content = tokenizer.decode(output_ids, skip_special_tokens=True).strip("\n")
 
-            results.append({
-                "prompt": prompts[i],
-                "content": content,
-                "input_tokens": len(model_inputs.input_ids[i]),
-                "output_tokens": len(output_ids),
-            })
+            results.append(
+                {
+                    "prompt": prompts[i],
+                    "content": content,
+                    "input_tokens": len(model_inputs.input_ids[i]),
+                    "output_tokens": len(output_ids),
+                }
+            )
 
         # Context manager exit will automatically unwrap the model and print the report
-        return {
-            "results": results,
-            "performance": profiler.report()
-        }
+        return {"results": results, "performance": profiler.report()}
 
 
 def sharegpt(path, max_prompt_len=None):
@@ -339,7 +339,7 @@ def main():
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Enable direct worker communication (bypasses controller forwarding). "
-             "Implements request decomposition to match worker's expected format.",
+        "Implements request decomposition to match worker's expected format.",
     )
     parser.add_argument(
         "--detail_profile",
@@ -390,18 +390,18 @@ def main():
             "How does MoE improve model efficiency?",
             "Compare MoE with dense models.",
         ] * args.prompt_num
-        test_prompts = test_prompts[:args.prompt_num]
+        test_prompts = test_prompts[: args.prompt_num]
     elif args.dataset == "sharegpt":
         # Validate that dataset_path is provided
         if args.dataset_path is None:
             raise ValueError(
-                "You must provide --dataset_path when using the 'sharegpt' dataset.")
+                "You must provide --dataset_path when using the 'sharegpt' dataset."
+            )
         # Load prompts from ShareGPT dataset
-        test_prompts = sharegpt(
-            args.dataset_path, max_prompt_len=args.max_prompt_len)
+        test_prompts = sharegpt(args.dataset_path, max_prompt_len=args.max_prompt_len)
         if len(test_prompts) < args.prompt_num:
             test_prompts *= (args.prompt_num // len(test_prompts)) + 1
-        test_prompts = test_prompts[:args.prompt_num]
+        test_prompts = test_prompts[: args.prompt_num]
     else:
         raise ValueError("Invalid dataset specified.")
 
@@ -413,7 +413,7 @@ def main():
                 break
             batch_result = evaluate_batch(
                 model_path=args.model_path,
-                prompts=test_prompts[prompts:prompts + batch_size],
+                prompts=test_prompts[prompts : prompts + batch_size],
                 enable_ek=args.enable_ek,
                 ek_addr=args.ek_addr,
                 ek_model_name=args.ek_model_name,
@@ -428,7 +428,8 @@ def main():
             print(f"Prompt: {result['prompt']}")
             print(f"Response: {result['content']}")
             print(
-                f"Input Tokens: {result['input_tokens']}, Output Tokens: {result['output_tokens']}")
+                f"Input Tokens: {result['input_tokens']}, Output Tokens: {result['output_tokens']}"
+            )
             print("-" * 40)
 
 
