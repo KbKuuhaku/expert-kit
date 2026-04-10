@@ -123,6 +123,7 @@ def get_iterations(batch_size: int) -> int:
 
 def main(args: argparse.Namespace) -> None:
     for batch_size in BATCH_SIZES:
+        logger.info(f"Benchmarking on batch size = {batch_size}...")
         benchmark = Qwen3MoEBenchmark(
             batch_size=batch_size,
             model_path=args.model_path,
