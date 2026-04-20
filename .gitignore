@@ -21,4 +21,10 @@ __pycache__
 # output
 output/
 .idea
+
+# AI-related
 .cursor/
+.codex*/
+.codex
+.nvim*
+AGENTS.md
