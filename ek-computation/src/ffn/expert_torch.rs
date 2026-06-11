@@ -78,21 +78,24 @@ impl TorchFFN {
                     .up_w
                     .inner()
                     .shallow_clone()
-                    .to_kind(tch::Kind::BFloat16)
+                    // .to_kind(tch::Kind::BFloat16)
+                    .to_kind(tch::Kind::Half)
                     .to_device(self.device.into());
                 let w2_tensor = self
                     .weight
                     .down_w
                     .inner()
                     .shallow_clone()
-                    .to_kind(tch::Kind::BFloat16)
+                    // .to_kind(tch::Kind::BFloat16)
+                    .to_kind(tch::Kind::Half)
                     .to_device(self.device.into());
                 let w3_tensor = self
                     .weight
                     .gate_w
                     .inner()
                     .shallow_clone()
-                    .to_kind(tch::Kind::BFloat16)
+                    // .to_kind(tch::Kind::BFloat16)
+                    .to_kind(tch::Kind::Half)
                     .to_device(self.device.into());
                 nn::seq().add_fn(move |x| {
                     let _up = x.matmul(&w1_tensor.transpose(0, 1));
