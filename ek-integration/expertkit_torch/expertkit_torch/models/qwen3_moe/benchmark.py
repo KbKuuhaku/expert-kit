@@ -1,3 +1,4 @@
+from zoneinfo import ZoneInfo
 import json
 from sympy.physics.units import action
 import time
@@ -221,7 +222,10 @@ def main(args: argparse.Namespace) -> None:
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=LOG_LEVEL_MAPPING[os.getenv("LOG_LEVEL", "info")])
+    logging.basicConfig(
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        level=LOG_LEVEL_MAPPING[os.getenv("LOG_LEVEL", "info")],
+    )
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
